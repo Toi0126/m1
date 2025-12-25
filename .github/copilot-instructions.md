@@ -6,6 +6,7 @@ description: This file describes the development guidelines for the project.
 
 ## 作業の進め方
 - t_wadaのTDDで、YAGNIの原則に従い、Baby stepsで進める
+- AWSの各種サービスの仕様はAWSのMCPを活用して最新情報を確認する
 - フレームワークやライブラリの仕様はContext7で最新版を確認しながら実装を進める
 - serenaも積極的に活用し、効率よく開発を進める
 - 進捗は元のドキュメントと serena のメモリに適宜記録しながら進める
