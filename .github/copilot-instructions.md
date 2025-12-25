@@ -11,10 +11,10 @@ description: This file describes the development guidelines for the project.
 - 進捗は元のドキュメントと serena のメモリに適宜記録しながら進める
 
 ## 方針
+- 設計時の参考にするGeminiのResearch結果: `docs/developer_guide/researches/research_report_by_gemini.md`
 - 方針は以下にまとめる。
     - 仕様概要：`docs/developer_guide/spec.md`
     - 設計概要：`docs/developer_guide/design.md`
-    - 設計時の参考にするGeminiのResearch結果: `docs/developer_guide/researches/research_report_by_gemini.md`
 
 ### 作業環境
 - Python3.12
