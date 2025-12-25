@@ -1,20 +1,32 @@
 # AWSへのデプロイ手順（MVP案）
 
 ## 前提
-- まずは **Lambda + DynamoDB** を最小構成として想定する。
-- HTTP公開は **Lambda Function URL** または **API Gateway** のどちらでも実現可能。
-  - AWS公式の比較資料では、単純な用途は Function URL、より高度な要件（認証方式の選択肢、キャッシュ、変換など）が必要なら API Gateway が適するとされている。
+- 本MVPは **Amplify Gen 2 + AppSync(GraphQL) + DynamoDB** を本流とする。
+- リアルタイム更新は **AppSync Subscription** を利用する。
+- 認証は **Cognito Identity Pool の未認証ID（ゲスト）** を用いた **IAM認証** を基本とする。
 
-## まずはローカル
-- `config/.env_sample` を参考に環境変数を設定
-- backend起動（uv利用）
+## 開発（Sandbox）
+Amplify Gen 2 の Cloud Sandbox を使い、開発者ごとの一時環境で動作確認する。
 
-## DynamoDB利用に切り替える場合
-- 環境変数
-  - `STORE_BACKEND=dynamodb`
-  - `DDB_TABLE_NAME=<table>`
+- 端末を2つ用意し、フロントエンドと sandbox を並行で動かす。
+- Sandbox起動:
+  - `npx ampx sandbox`
+  - デプロイ完了後、クライアント設定として `amplify_outputs.json` が生成/更新される（デフォルトはプロジェクトルート）。
 
-## 参考（AWS MCPで確認したいポイント）
-- LambdaをHTTPで呼ぶ方法の選択（Function URL vs API Gateway）
-- API Gateway HTTP API + Lambda の統合（payload format 2.0）
-- DynamoDBのテーブル作成（オンデマンド推奨など）
+※ monorepo 等で出力先を変える場合は、`npx ampx sandbox --outputs-out-dir <dir>` 等を利用する（AWS公式ドキュメント参照）。
+
+## 本番デプロイ（Hosting + Branch Environment）
+- Amplify Hosting を利用して `web/` の静的アセットを配信する。
+- 本番用のブランチ環境（Amplify Console）を用意し、必要な backend resource（AppSync/DynamoDB/Auth）をデプロイする。
+- ブランチ環境に対するクライアント設定は以下で生成できる。
+  - `npx ampx generate outputs --app-id <app-id> --branch main`
+
+## 生成されるAWSリソース（概略）
+- AppSync(GraphQL API)
+- DynamoDB（データストア。Candidate.totalScore を集計済みとして保持）
+- Cognito（ゲストアクセス用のIdentity Pool 等）
+- Amplify Hosting（静的配信）
+
+## 運用上の注意（MVP）
+- ゲストアクセスは不正利用リスクがあるため、レート制限や入力バリデーションは段階的に検討する。
+- `score` は必ず整数（未入力は0）として送る。`null` の加算はエラーになり得るため、クライアント側で正規化する。

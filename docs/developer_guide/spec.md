@@ -30,7 +30,31 @@
   - (1,1,3)。
 
 ## API（概要）
-- `POST /api/events`: 採点イベント作成
-- `POST /api/events/{event_id}/join`: 採点イベント参加
-- `PUT /api/events/{event_id}/participants/{participant_id}/scores`: 採点保存
-- `GET /api/events/{event_id}/results`: 結果取得
+本MVPは **AWS Amplify Gen 2 + AWS AppSync(GraphQL)** を本流とし、RESTではなく GraphQL API を利用する。
+
+### 認証モード
+- **ゲスト利用可（アカウント登録なし）** を前提とする。
+- 認証方式は **IAM（Cognito Identity Pool の未認証ID）** を基本とし、クライアントには `IdentityId` が付与される。
+
+### データ操作（Query/Mutation）
+最小限の操作は以下とする（命名は実装で調整可）。
+
+- イベント作成
+  - `createEvent(title, candidates[])`
+- イベント参加（表示名登録）
+  - `createParticipant(eventId, displayName)`
+- 採点（投票）
+  - `upsertVote(eventId, candidateId, score)`
+- 結果表示（初期ロード）
+  - `listCandidates(eventId)` : 各採点対象の `totalScore` を取得
+  - `listVotesByVoter(eventId)` : 自分の投票（未入力は0扱い）を取得
+
+### リアルタイム更新（Subscription）
+誰かが投票して合計点が更新されたら、参加者の画面を即時更新する。
+
+- `onCandidateUpdated(eventId)` : `totalScore` 更新を購読
+
+### 集計・順位計算
+- 「全員合計」は **採点対象（Candidate）の `totalScore`** を表示する。
+- 「順位（1,1,3方式）」は **クライアント側で計算** する（候補数が少なく計算コストが低いため）。
+- 未入力は 0 点として扱う（クライアント側で必ず整数に正規化して送信/表示する）。

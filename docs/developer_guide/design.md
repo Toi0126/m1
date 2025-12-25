@@ -2,30 +2,60 @@
 
 ## 方針
 - まずは最小機能（採点→集計→順位表示）に限定する。
-- 環境依存（永続化）はアダプタ層（Store実装）に分離する。
+- サーバーレス前提で、**AWS Amplify Gen 2 + AWS AppSync(GraphQL) + Amazon DynamoDB** を本流とする。
+- 「誰かが投票した瞬間に他の参加者へ反映」を実現するため、**AppSync Subscription** を利用する。
+- ランキング（1,1,3方式）は候補数が小さいため、**クライアント側で純粋関数として計算**する。
 
 ## 構成
-- `backend/`: FastAPI（API + 静的HTML配信）
-- `web/`: 1枚HTML + JS（スマホブラウザで動く）
+- フロントエンド: `web/`（静的HTML + JS。スマホブラウザで動く）
+- バックエンド: Amplify Gen 2（TypeScriptでIaC）
+  - Data: AppSync(GraphQL) + DynamoDB
+  - Auth: Cognito（Identity Pool によるゲスト/IAM）
+  - Hosting: Amplify Hosting（静的配信）
 
-## 主要モジュール
-- `m1.domain`: リクエスト/レスポンス、ドメインモデル
-- `m1.ranking`: 合計点・順位計算（Pure）
-- `m1.store`: 永続化（InMemory / DynamoDB）
-- `m1.main`: FastAPI エンドポイント
+※ 既存の `backend/` はローカル実験や代替実装として残し得るが、本設計の本流は **AppSync(GraphQL)** とする。
 
-## データモデル（DynamoDB想定）
-単一テーブル（PK/SK）でイベント単位に集約。
+## 主要モジュール（フロントエンド）
+- `web/app.js`
+  - AppSync への接続（Amplify client config 読み込み）
+  - 候補一覧取得、投票送信、Subscription購読
+  - ランキング計算（1,1,3方式）
+
+## バックエンドリソース（Amplify Gen 2）
+Amplify Gen 2 の `resource.ts` で定義する。
+
+### データモデル（概念）
 - Event
-  - pk: `EVENT#{event_id}`
-  - sk: `META`
-- Participant
-  - pk: `EVENT#{event_id}`
-  - sk: `PARTICIPANT#{participant_id}`
-- Score
-  - pk: `EVENT#{event_id}`
-  - sk: `SCORE#{participant_id}#{entry_id}`
+  - `title`
+- Candidate
+  - `eventId`
+  - `name`
+  - `totalScore`（集計済み合計点。Atomic Counterで更新）
+- Vote
+  - `eventId`
+  - `candidateId`
+  - `score`（整数）
+  - `voterId`（Cognito IdentityId を格納）
+- Participant（参加時の表示名保持）
+  - `eventId`
+  - `voterId`（IdentityId）
+  - `displayName`
 
-## 認証（MVP）
-- 参加時に `participant_key` を発行し、採点保存時に `X-Participant-Key` で照合する。
-- 本番での利用を広げる場合は Cognito 等に置き換え可能。
+### 認証（MVP）
+- アカウント登録なしで使うため、**未認証ID（ゲスト）** を採用する。
+- クライアントは Cognito Identity Pool から IdentityId を取得し、IAM署名（SigV4）で AppSync を呼ぶ。
+- `voterId = IdentityId` として Vote/Participant に保存し、「自分の採点」を識別できるようにする。
+
+## 集計方式（Write-time Aggregation）
+「全員合計」を都度集計（Read-time Aggregation）しない。
+
+- 投票（Vote）作成/更新時に、Candidate の `totalScore` を **Atomic Counter** 的に増減させる。
+- 更新値は `delta = newScore - oldScore` とし、oldScore が存在しない場合は 0 とみなす。
+
+### AppSyncでの実現（概要）
+Vote の upsert を **Pipeline Resolver**（または同等の手段）で実現し、概ね以下の順で処理する。
+
+1. 既存Vote取得（存在しなければ oldScore=0）
+2. Vote を作成/更新（score を newScore に）
+3. Candidate の `totalScore` を `ADD totalScore :delta` で更新
+4. Candidate 更新により Subscription で各クライアントへ通知
