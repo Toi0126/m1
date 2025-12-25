@@ -245,6 +245,9 @@ async function refreshResults() {
   if (partErrors?.length) throw new Error(partErrors[0].message);
   if (voteErrors?.length) throw new Error(voteErrors[0].message);
 
+  console.log('votes:', votes);
+  console.log('participants:', participants);
+
   const candList = (candidates ?? []).map((c) => ({ ...c, totalScore: Number(c.totalScore ?? 0) }));
   const totalsPairs = candList.map((c) => ({ id: c.id, score: Number(c.totalScore ?? 0) }));
   const totalRanks = competitionRankDesc(totalsPairs);
