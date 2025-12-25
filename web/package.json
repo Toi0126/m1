@@ -8,7 +8,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "aws-amplify": "^6.15.2"
+    "aws-amplify": "^6.15.2",
+    "m1": "file:.."
   },
   "devDependencies": {
     "vite": "^5.4.11"
