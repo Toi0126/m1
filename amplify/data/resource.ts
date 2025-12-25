@@ -1,0 +1,65 @@
+import { a, defineData, type ClientSchema } from '@aws-amplify/backend';
+
+import { upsertVote } from '../functions/upsert-vote/resource';
+
+const schema = a
+  .schema({
+    Event: a
+      .model({
+        title: a.string().required(),
+      })
+      .authorization((allow) => [allow.guest()]),
+
+    Candidate: a
+      .model({
+        eventId: a.id().required(),
+        name: a.string().required(),
+        totalScore: a.integer().required(),
+      })
+      .secondaryIndexes((index) => [index('eventId').queryField('listCandidatesByEvent')])
+      .authorization((allow) => [allow.guest()]),
+
+    Participant: a
+      .model({
+        eventId: a.id().required(),
+        voterId: a.string().required(),
+        displayName: a.string().required(),
+      })
+      .secondaryIndexes((index) => [index('eventId').queryField('listParticipantsByEvent')])
+      .authorization((allow) => [allow.guest()]),
+
+    Vote: a
+      .model({
+        eventId: a.id().required(),
+        candidateId: a.id().required(),
+        voterId: a.string().required(),
+        score: a.integer().required(),
+      })
+      .secondaryIndexes((index) => [
+        index('eventId').queryField('listVotesByEvent'),
+        index('eventId', 'voterId').queryField('listVotesByEventAndVoter'),
+      ])
+      .authorization((allow) => [allow.guest()]),
+
+    upsertVote: a
+      .mutation()
+      .arguments({
+        eventId: a.id().required(),
+        candidateId: a.id().required(),
+        score: a.integer().required(),
+      })
+      .returns(a.ref('Candidate'))
+      .authorization((allow) => [allow.guest()])
+      .handler(a.handler.function(upsertVote)),
+  })
+  // Allow the function to call the GraphQL API if needed in future.
+  .authorization((allow) => [allow.resource(upsertVote)]);
+
+export type Schema = ClientSchema<typeof schema>;
+
+export const data = defineData({
+  schema,
+  authorizationModes: {
+    defaultAuthorizationMode: 'identityPool',
+  },
+});

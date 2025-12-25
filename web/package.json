@@ -1,0 +1,16 @@
+{
+  "name": "m1-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "aws-amplify": "^6.15.2"
+  },
+  "devDependencies": {
+    "vite": "^5.4.11"
+  }
+}

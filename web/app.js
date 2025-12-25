@@ -4,6 +4,7 @@ const state = {
   eventId: localStorage.getItem("eventId") || "",
   participantId: localStorage.getItem("participantId") || "",
   participantKey: localStorage.getItem("participantKey") || "",
+  participantName: localStorage.getItem("participantName") || "",
   event: null,
 };
 
@@ -58,13 +59,17 @@ function showSections() {
   if (state.eventId && state.participantId && state.participantKey && state.event) {
     score.hidden = false;
     results.hidden = false;
-    setText("score-meta", `イベント: ${state.event.title} / あなた: ${state.participantId}`);
+    const me = state.participantName
+      ? `${state.participantName} (${state.participantId})`
+      : state.participantId;
+    setText("score-meta", `イベント: ${state.event.title} / あなた: ${me}`);
   } else {
     score.hidden = true;
     results.hidden = true;
   }
 
   $("join-event-id").value = state.eventId || "";
+  $("join-name").value = state.participantName || $("join-name").value;
 }
 
 function renderScoreForm() {
@@ -191,10 +196,12 @@ $("btn-join").addEventListener("click", async () => {
     state.eventId = eventId;
     state.participantId = r.participant_id;
     state.participantKey = r.participant_key;
+    state.participantName = name;
 
     localStorage.setItem("eventId", state.eventId);
     localStorage.setItem("participantId", state.participantId);
     localStorage.setItem("participantKey", state.participantKey);
+    localStorage.setItem("participantName", state.participantName);
 
     setText("join-result", `参加OK: ${state.participantId}`);
     await loadEvent();

@@ -13,6 +13,13 @@ Amplify Gen 2 の Cloud Sandbox を使い、開発者ごとの一時環境で動
   - `npx ampx sandbox`
   - デプロイ完了後、クライアント設定として `amplify_outputs.json` が生成/更新される（デフォルトはプロジェクトルート）。
 
+## フロントエンド設定（amplify_outputs.json）
+`web/` は `GET /amplify_outputs.json` を実行時に読み込む。
+
+- ローカル開発（Vite）: `web/public/amplify_outputs.json` に配置するとそのまま配信される
+- 生成物をコピーする例:
+  - `copy amplify_outputs.json web\public\amplify_outputs.json`
+
 ※ monorepo 等で出力先を変える場合は、`npx ampx sandbox --outputs-out-dir <dir>` 等を利用する（AWS公式ドキュメント参照）。
 
 ## 本番デプロイ（Hosting + Branch Environment）

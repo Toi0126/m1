@@ -21,6 +21,19 @@ from .ranking import compute_overall, compute_per_participant
 from .store import build_store
 
 
+def _load_dotenv(repo_root: Path) -> None:
+    env_path = repo_root / "config" / ".env"
+    if not env_path.exists():
+        return
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv(dotenv_path=env_path, override=False)
+    except ImportError:
+        # python-dotenv is an optional convenience; env vars may be set by runtime.
+        return
+
+
 def create_app() -> FastAPI:
     app = FastAPI(title="M1 Scoring")
 
@@ -32,9 +45,10 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    store = build_store()
-
     repo_root = Path(__file__).resolve().parents[3]
+    _load_dotenv(repo_root)
+
+    store = build_store()
     web_dir = Path(os.environ.get("WEB_DIR", str(repo_root / "web"))).resolve()
 
     # このMVPでは static/ を置かないので、同じ web/ をそのまま配信
