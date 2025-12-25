@@ -37,7 +37,7 @@ const schema = a
       })
       .secondaryIndexes((index) => [
         index('eventId').queryField('listVotesByEvent'),
-        index('eventId', 'voterId').queryField('listVotesByEventAndVoter'),
+        index('eventId').sortKeys(['voterId']).queryField('listVotesByEventAndVoter'),
       ])
       .authorization((allow) => [allow.guest()]),
 

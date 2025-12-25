@@ -8,8 +8,12 @@
     "web:dev": "npm --prefix web run dev",
     "web:build": "npm --prefix web run build"
   },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.879.0"
+  },
   "devDependencies": {
     "@aws-amplify/backend": "^1.6.0",
+    "@types/node": "^22.10.2",
     "aws-cdk-lib": "^2.176.0",
     "constructs": "^10.4.2",
     "typescript": "^5.7.2"

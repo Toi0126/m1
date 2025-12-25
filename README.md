@@ -14,6 +14,10 @@ Saiten Web App
 
 `amplify_outputs.json` が生成されます（フロントはこれを読み込みます）。
 
+monorepo のため、以下のように `web/public` へ直接出力しておくとコピー不要です。
+
+- `npm run sandbox -- --outputs-out-dir web/public --outputs-format json`
+
 ### 3) Web起動
 - `cd web`
 - `npm install`
