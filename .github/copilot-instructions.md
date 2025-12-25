@@ -28,8 +28,8 @@ description: This file describes the development guidelines for the project.
 - 構成は下記に従う。修正が必要な場合はそれを示す。
     ```markdown
     docs
-    ├─developments
-    │  └─requirements
+    ├─developer_guide/          : 開発者向けガイド
+    │  ├─requirements
     │  │  ├─analyses
     │  │  │  ├─xxx_design_detail.md  : 下記機能ごとに個別に定義され、かつコード中コメントとして記載が難しい内容について記載
     │  │  │  └─...
