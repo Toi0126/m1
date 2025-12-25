@@ -14,6 +14,7 @@ description: This file describes the development guidelines for the project.
 - 方針は以下にまとめる。
     - 仕様概要：`docs/developer_guide/spec.md`
     - 設計概要：`docs/developer_guide/design.md`
+    - 設計時の参考にするGeminiのResearch結果: `docs/developer_guide/researches/research_report_by_gemini.md`
 
 ### 作業環境
 - Python3.12
