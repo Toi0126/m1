@@ -1,6 +1,10 @@
 # m1
 Saiten Web App
 
+## 別PCでの作業再開
+
+- 実装検証・デプロイ作業の続き手順: [docs/developer_guide/validation_and_deploy_next_steps.md](docs/developer_guide/validation_and_deploy_next_steps.md)
+
 ## ローカル実行（本流: Amplify Gen 2 + AppSync）
 
 本MVPの本流は **Amplify Gen 2 + AppSync(GraphQL) + DynamoDB + Cognito(ゲスト/IAM)** です。
