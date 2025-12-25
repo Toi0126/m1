@@ -235,6 +235,9 @@ $("btn-refresh-results").addEventListener("click", async () => {
 
 (async function boot() {
   try {
+    // REST API の代わりに GraphQL を使う場合は、amplify_outputs.json を読み込んで
+    // Amplify Data client を初期化する必要があります。
+    // 現在は REST API エンドポイントが実装されていないため、UI 表示のみです。
     await loadEvent();
     showSections();
   } catch (e) {
