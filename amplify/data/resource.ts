@@ -23,7 +23,10 @@ const schema = a
         voterId: a.string().required(),
         displayName: a.string().required(),
       })
-      .secondaryIndexes((index) => [index('eventId').queryField('listParticipantsByEvent')])
+      .secondaryIndexes((index) => [
+        index('eventId').queryField('listParticipantsByEvent'),
+        index('eventId').sortKeys(['voterId']).queryField('listParticipantsByEventAndVoter'),
+      ])
       .authorization((allow) => [allow.guest()]),
 
     Vote: a

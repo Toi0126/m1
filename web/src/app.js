@@ -103,22 +103,28 @@ async function joinEvent(eventId, displayName) {
   if (!eventId.trim()) throw new Error('イベントIDを入力してください');
   if (!displayName.trim()) throw new Error('名前を入力してください');
 
-  const participantId = `${eventId}#${state.identityId}`;
   const { data, errors } = await client.models.Participant.create({
-    id: participantId,
     eventId,
     voterId: state.identityId,
     displayName,
   });
 
-  // idempotent join: if already exists, just accept.
+  // idempotent join: if already exists, check by query
   if (errors?.length) {
     const msg = errors[0].message || '';
-    if (!msg.includes('ConditionalCheckFailed') && !msg.includes('already exists')) {
-      throw new Error(msg);
+    if (msg.includes('ConditionalCheckFailed') || msg.includes('already exists')) {
+      // Try to fetch existing participant
+      const { data: existing } = await client.models.Participant.listParticipantsByEventAndVoter({
+        eventId,
+        voterId: state.identityId,
+      });
+      if (existing?.length > 0) {
+        return existing[0];
+      }
     }
+    throw new Error(msg);
   }
-  return data ?? { id: participantId, eventId, voterId: state.identityId, displayName };
+  return data;
 }
 
 async function loadEventAndCandidates() {
@@ -353,14 +359,14 @@ $('btn-save-scores').addEventListener('click', async () => {
     const scores = readScoresFromForm();
 
     for (const s of scores) {
-      // Create or update Vote record
-      const voteId = `${state.eventId}#${s.candidateId}#${state.identityId}`;
+      // Query existing vote by eventId + candidateId + voterId
+      const { data: existingVotes } = await client.models.Vote.listVotesByEvent({
+        eventId: state.eventId,
+      });
       
-      // Check if vote exists
-      const { data: existingVote, errors: getErrors } = await client.models.Vote.get({ id: voteId });
-      if (getErrors?.length && !getErrors[0].message.includes('NotFound')) {
-        throw new Error(getErrors[0].message);
-      }
+      const existingVote = existingVotes?.find(
+        (v) => v.candidateId === s.candidateId && v.voterId === state.identityId
+      );
 
       const oldScore = existingVote?.score ?? 0;
       const delta = s.score - oldScore;
@@ -368,14 +374,13 @@ $('btn-save-scores').addEventListener('click', async () => {
       if (existingVote) {
         // Update existing vote
         const { errors: updateErrors } = await client.models.Vote.update({
-          id: voteId,
+          id: existingVote.id,
           score: s.score,
         });
         if (updateErrors?.length) throw new Error(updateErrors[0].message);
       } else {
         // Create new vote
         const { errors: createErrors } = await client.models.Vote.create({
-          id: voteId,
           eventId: state.eventId,
           candidateId: s.candidateId,
           voterId: state.identityId,
