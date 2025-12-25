@@ -25,6 +25,12 @@ function parseLines(text) {
     .filter((s) => s.length > 0);
 }
 
+function requireNonBlank(label, value) {
+  const v = String(value ?? '').trim();
+  if (!v) throw new Error(`${label}を入力してください`);
+  return v;
+}
+
 function competitionRankDesc(pairs) {
   // pairs: [{ id, score }]
   const sorted = [...pairs].sort((a, b) => {
@@ -72,6 +78,9 @@ async function ensureIdentity() {
 const client = generateClient();
 
 async function createEvent(title, entryNames) {
+  if (!title.trim()) throw new Error('タイトルを入力してください');
+  if (!entryNames.length) throw new Error('採点対象を1件以上入力してください');
+
   const { data: event, errors } = await client.models.Event.create({ title });
   if (errors?.length) throw new Error(errors[0].message);
   if (!event) throw new Error('failed to create event');
@@ -91,6 +100,9 @@ async function createEvent(title, entryNames) {
 }
 
 async function joinEvent(eventId, displayName) {
+  if (!eventId.trim()) throw new Error('イベントIDを入力してください');
+  if (!displayName.trim()) throw new Error('名前を入力してください');
+
   const participantId = `${eventId}#${state.identityId}`;
   const { data, errors } = await client.models.Participant.create({
     id: participantId,
@@ -292,21 +304,21 @@ function setupRealtime() {
   teardownRealtime();
   if (!state.eventId) return;
 
-  // Candidates total updates (server pushes)
-  const sub = client.models.Candidate.onUpdate({
-    filter: { eventId: { eq: state.eventId } },
-  }).subscribe({
-    next: async () => {
-      try {
-        await refreshResults();
-      } catch {
+  // Realtime updates: subscribe to the custom subscription that is linked to the upsertVote mutation.
+  const sub = client.subscriptions
+    .onCandidateUpdated({ eventId: state.eventId })
+    .subscribe({
+      next: async () => {
+        try {
+          await refreshResults();
+        } catch {
+          // ignore
+        }
+      },
+      error: () => {
         // ignore
-      }
-    },
-    error: () => {
-      // ignore
-    },
-  });
+      },
+    });
 
   state.subs.push(sub);
 }
@@ -314,7 +326,7 @@ function setupRealtime() {
 $('btn-create').addEventListener('click', async () => {
   setText('create-result', '');
   try {
-    const title = $('create-title').value.trim();
+    const title = requireNonBlank('タイトル', $('create-title').value);
     const entries = parseLines($('create-entries').value);
 
     const r = await createEvent(title, entries);
@@ -331,8 +343,8 @@ $('btn-create').addEventListener('click', async () => {
 $('btn-join').addEventListener('click', async () => {
   setText('join-result', '');
   try {
-    const eventId = $('join-event-id').value.trim();
-    const name = $('join-name').value.trim();
+    const eventId = requireNonBlank('イベントID', $('join-event-id').value);
+    const name = requireNonBlank('名前', $('join-name').value);
 
     await joinEvent(eventId, name);
 

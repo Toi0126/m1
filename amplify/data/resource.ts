@@ -51,6 +51,19 @@ const schema = a
       .returns(a.ref('Candidate'))
       .authorization((allow) => [allow.guest()])
       .handler(a.handler.function(upsertVote)),
+
+    onCandidateUpdated: a
+      .subscription()
+      .for(a.ref('upsertVote'))
+      .arguments({
+        eventId: a.id().required(),
+      })
+      .handler(
+        a.handler.custom({
+          entry: './onCandidateUpdated.js',
+        })
+      )
+      .authorization((allow) => [allow.guest()]),
   })
   // Allow the function to call the GraphQL API if needed in future.
   .authorization((allow) => [allow.resource(upsertVote)]);

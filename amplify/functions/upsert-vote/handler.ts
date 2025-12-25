@@ -5,7 +5,6 @@ import {
   GetItemCommand,
   PutItemCommand,
   TransactWriteItemsCommand,
-  UpdateItemCommand,
 } from '@aws-sdk/client-dynamodb';
 
 const ddb = new DynamoDBClient({});
