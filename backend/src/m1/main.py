@@ -69,7 +69,9 @@ def create_app() -> FastAPI:
         if event is None:
             raise HTTPException(status_code=404, detail="event not found")
         participant = store.join_event(event_id, req.name)
-        return JoinEventResponse(participant_id=participant.id, participant_key=participant.participant_key)
+        return JoinEventResponse(
+            participant_id=participant.id, participant_key=participant.participant_key
+        )
 
     @app.put("/api/events/{event_id}/participants/{participant_id}/scores")
     def put_scores(
@@ -100,7 +102,9 @@ def create_app() -> FastAPI:
         scores_by_participant = store.list_scores_by_participant(event_id)
 
         overall = compute_overall(event.entries, scores_by_participant)
-        per_participant = compute_per_participant(event.entries, participants, scores_by_participant)
+        per_participant = compute_per_participant(
+            event.entries, participants, scores_by_participant
+        )
 
         return ResultsResponse(
             event_id=event.id,

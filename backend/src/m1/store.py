@@ -42,7 +42,9 @@ class InMemoryStore(Store):
 
     def create_event(self, title: str, entry_names: list[str]) -> Event:
         event_id = new_id("evt")
-        entries = [Entry(id=new_id("ent"), name=name.strip()) for name in entry_names if name.strip()]
+        entries = [
+            Entry(id=new_id("ent"), name=name.strip()) for name in entry_names if name.strip()
+        ]
         event = Event(id=event_id, title=title.strip(), entries=entries, created_at=_now())
         self.events[event_id] = event
         return event
@@ -104,7 +106,9 @@ class DynamoDBStore(Store):
 
     def create_event(self, title: str, entry_names: list[str]) -> Event:
         event_id = new_id("evt")
-        entries = [Entry(id=new_id("ent"), name=name.strip()) for name in entry_names if name.strip()]
+        entries = [
+            Entry(id=new_id("ent"), name=name.strip()) for name in entry_names if name.strip()
+        ]
         event = Event(id=event_id, title=title.strip(), entries=entries, created_at=_now())
 
         self._table.put_item(
@@ -153,7 +157,9 @@ class DynamoDBStore(Store):
         item = resp.get("Item")
         if not item:
             return None
-        return Participant(id=participant_id, name=item["name"], participant_key=item["participant_key"])
+        return Participant(
+            id=participant_id, name=item["name"], participant_key=item["participant_key"]
+        )
 
     def list_participants(self, event_id: str) -> list[Participant]:
         resp = self._table.query(
@@ -164,7 +170,9 @@ class DynamoDBStore(Store):
         participants: list[Participant] = []
         for it in items:
             pid = it["sk"].split("#", 1)[1]
-            participants.append(Participant(id=pid, name=it["name"], participant_key=it["participant_key"]))
+            participants.append(
+                Participant(id=pid, name=it["name"], participant_key=it["participant_key"])
+            )
         return participants
 
     def put_scores(
@@ -188,7 +196,8 @@ class DynamoDBStore(Store):
 
     def list_scores_by_participant(self, event_id: str) -> dict[str, dict[str, int]]:
         resp = self._table.query(
-            KeyConditionExpression=Key("pk").eq(f"EVENT#{event_id}") & Key("sk").begins_with("SCORE#")
+            KeyConditionExpression=Key("pk").eq(f"EVENT#{event_id}")
+            & Key("sk").begins_with("SCORE#")
         )
         items = resp.get("Items", [])
         result: dict[str, dict[str, int]] = defaultdict(dict)

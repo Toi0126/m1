@@ -1,0 +1,93 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+        "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/bin/python",
+		"hediet.vscode-drawio.offline": true,
+		"hediet.vscode-drawio.online-url": "",
+		"chat.agent.enabled": true,
+        "chat.tools.terminal.autoApprove": {
+            // allow
+            "/^git (status|log|show|diff|stash|add)\\b/": true,
+            "/^pnpm (install|lint|build|exec|vitest|playwright|typecheck|prettier)\\b/": true,
+            "/^pnpm docker(:[\\w-]+)*\\b/": true,
+            "/^pnpm test(:[\\w-]+)*\\b/": true,
+            "/^pnpm precommit(:[\\w-]+)*\\b/": true,
+            "/^pnpm prepush(:[\\w-]+)*\\b/": true,
+            "/^pnpm (run )?docs(:[\\w-]+)*\\b/": true,
+            "/^pnpm logger(:[\\w-]+)*\\b/": true,
+            "/^npm (ci|test|run build)\\b/": true,
+            "/^turbo (run )?(build|lint|test)\\b/": true,
+            "/^nx (test|build|graph)\\b/": true,
+            "/^docker( compose)? (pull|ps|images|build)\\b/": true,
+            "echo": true,
+            "cat": true,
+            "pwd": true,
+            "ls": true,
+            "mkdir": true,
+            "cd": true,
+            "head": true,
+            "tail": true,
+            "grep": true,
+            "sed": true,
+            "find": true,
+            "curl": true,
+            "true": true,
+            "bash": true,
+            "/^Get-Content/": true,
+            "/^Select-Object/": true,
+            "/^New-Item/": true,
+            "/^Get-ChildItem/": true,
+            "/^Sort-Object/": true,
+            // deny
+            "rm": false,
+            "rmdir": false,
+            "chmod": false,
+            "chown": false,
+            "/^sudo\\b/": false,
+            "wget": false,
+            "scp": false,
+            "/rm\\s+-rf\\s+\\/": {
+                "approve": false,
+                "matchCommandLine": true
+            },
+            "/\\.ps1\\b/i": {
+                "approve": false,
+                "matchCommandLine": true
+            },
+            "/^Remove-Item/": false,
+        },
+        "editor.aiStats.enabled": true,
+        "files.exclude": {
+            "**/__pycache__": true,
+            "**/.pytest_cache": true,
+            "**/.mypy_cache": true,
+            "**/.ruff_cache": true,
+            "**/.venv": true,
+            "**/cdk.out/": true,
+            "**/.coverage": true,
+            ".coveragerc": true
+        },
+        "search.exclude": {
+            "**/__pycache__": true,
+            "**/.pytest_cache": true,
+            "**/.mypy_cache": true,
+            "**/.ruff_cache": true,
+            "**/cdk.out/": true,
+            ".coverage": true,
+            ".coveragerc": true
+        },
+        "python.analysis.extraPaths": [
+            "${workspaceFolder}/backend/src",
+        ],
+        "python.testing.cwd": "${workspaceFolder}/backend",
+        "python.testing.pytestArgs": [
+            "tests"
+        ],
+        "python.testing.unittestEnabled": false,
+        "python.testing.pytestEnabled": true
+	}
+}

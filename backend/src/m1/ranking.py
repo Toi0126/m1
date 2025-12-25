@@ -5,22 +5,27 @@ from collections import defaultdict
 from .domain import Entry, OverallRow, Participant, ParticipantResult, RankingRow
 
 
-def dense_rank_desc(pairs: list[tuple[str, int]]) -> dict[str, int]:
-    """スコア降順のDense Rankingを返す。
+def competition_rank_desc(pairs: list[tuple[str, int]]) -> dict[str, int]:
+    """スコア降順の競技順位（1,1,3）を返す。
 
-    同点は同順位、次順位は1つだけ進む（例: 1,1,2）。
+    同点は同順位。
+    次の順位は飛ばす（例: 1,1,3）。
     """
 
     sorted_pairs = sorted(pairs, key=lambda x: (-x[1], x[0]))
     ranks: dict[str, int] = {}
     last_score: int | None = None
-    current_rank = 0
+    last_rank: int | None = None
 
-    for entry_id, score in sorted_pairs:
-        if last_score is None or score != last_score:
-            current_rank += 1
-            last_score = score
-        ranks[entry_id] = current_rank
+    for position, (entry_id, score) in enumerate(sorted_pairs, start=1):
+        if last_score is not None and score == last_score:
+            assert last_rank is not None
+            ranks[entry_id] = last_rank
+            continue
+
+        ranks[entry_id] = position
+        last_score = score
+        last_rank = position
 
     return ranks
 
@@ -36,7 +41,7 @@ def compute_per_participant(
     for participant in sorted(participants, key=lambda p: p.name):
         score_map = scores_by_participant.get(participant.id, {})
         pairs = [(e.id, int(score_map.get(e.id, 0))) for e in entries]
-        ranks = dense_rank_desc(pairs)
+        ranks = competition_rank_desc(pairs)
         rows = [
             RankingRow(
                 entry_id=eid,
@@ -57,14 +62,16 @@ def compute_per_participant(
     return results
 
 
-def compute_overall(entries: list[Entry], scores_by_participant: dict[str, dict[str, int]]) -> list[OverallRow]:
+def compute_overall(
+    entries: list[Entry], scores_by_participant: dict[str, dict[str, int]]
+) -> list[OverallRow]:
     totals: dict[str, int] = defaultdict(int)
     for _pid, score_map in scores_by_participant.items():
         for entry_id, score in score_map.items():
             totals[entry_id] += int(score)
 
     pairs = [(e.id, int(totals.get(e.id, 0))) for e in entries]
-    ranks = dense_rank_desc(pairs)
+    ranks = competition_rank_desc(pairs)
     entry_name = {e.id: e.name for e in entries}
 
     rows = [
