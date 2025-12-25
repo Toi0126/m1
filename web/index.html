@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>M1 Scoring</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header class="container">
+      <h1>M1 Scoring</h1>
+      <p class="muted">みんなで採点 → 合計点と順位を表示（MVP）</p>
+    </header>
+
+    <main class="container">
+      <section class="card">
+        <h2>1) イベント作成</h2>
+        <label>
+          タイトル
+          <input id="create-title" type="text" placeholder="例: M-1 2025 決勝" />
+        </label>
+        <label>
+          採点対象（1行1つ）
+          <textarea id="create-entries" rows="6" placeholder="例:\nA組\nB組\nC組"></textarea>
+        </label>
+        <button id="btn-create">作成</button>
+        <div class="muted" id="create-result"></div>
+      </section>
+
+      <section class="card">
+        <h2>2) 参加（ニックネーム）</h2>
+        <label>
+          イベントID
+          <input id="join-event-id" type="text" placeholder="evt_..." />
+        </label>
+        <label>
+          名前
+          <input id="join-name" type="text" placeholder="例: たろう" />
+        </label>
+        <button id="btn-join">参加</button>
+        <div class="muted" id="join-result"></div>
+      </section>
+
+      <section class="card" id="score-section" hidden>
+        <h2>3) 採点</h2>
+        <div class="muted" id="score-meta"></div>
+        <div id="score-form"></div>
+        <button id="btn-save-scores">採点を保存</button>
+        <div class="muted" id="score-result"></div>
+      </section>
+
+      <section class="card" id="results-section" hidden>
+        <h2>4) 結果</h2>
+        <button id="btn-refresh-results">更新</button>
+        <div id="results"></div>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
