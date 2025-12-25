@@ -1,6 +1,7 @@
 .venv/
 *.pyc
 .DS_Store
+.amplify
 
 # env
 config/.env
