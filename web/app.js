@@ -14,7 +14,10 @@ function setText(id, text) {
 }
 
 function apiBase() {
-  return ""; // same origin
+  // ローカル開発: http://localhost:8001
+  // 本番: backend のエンドポイント（または relative URL）
+  const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  return isDev ? 'http://localhost:8001' : '';
 }
 
 async function api(path, options = {}) {
@@ -46,10 +49,15 @@ function parseLines(text) {
 
 async function loadEvent() {
   if (!state.eventId) return;
-  const event = await api(`/api/events/${encodeURIComponent(state.eventId)}`);
-  state.event = event;
-  renderScoreForm();
-  showSections();
+  try {
+    const event = await api(`/api/events/${encodeURIComponent(state.eventId)}`);
+    state.event = event;
+    renderScoreForm();
+    showSections();
+  } catch (e) {
+    console.warn("Failed to load event (REST API not available):", e.message);
+    // REST API が実装されていない場合はスキップ
+  }
 }
 
 function showSections() {

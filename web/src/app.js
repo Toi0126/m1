@@ -304,24 +304,10 @@ function setupRealtime() {
   teardownRealtime();
   if (!state.eventId) return;
 
-  // Realtime updates: subscribe to the custom subscription that is linked to the upsertVote mutation.
-  const sub = client.subscriptions
-    .onCandidateUpdated({ eventId: state.eventId })
-    .subscribe({
-      next: async () => {
-        try {
-          await refreshResults();
-        } catch {
-          // ignore
-        }
-      },
-      error: () => {
-        // ignore
-      },
-    });
-
-  state.subs.push(sub);
+  // Realtime updates: disabled for MVP
+  // TODO: Implement subscription when GraphQL API is ready
 }
+
 
 $('btn-create').addEventListener('click', async () => {
   setText('create-result', '');
@@ -367,15 +353,50 @@ $('btn-save-scores').addEventListener('click', async () => {
     const scores = readScoresFromForm();
 
     for (const s of scores) {
-      const { errors } = await client.mutations.upsertVote({
-        eventId: state.eventId,
-        candidateId: s.candidateId,
-        score: s.score,
-      });
-      if (errors?.length) throw new Error(errors[0].message);
+      // Create or update Vote record
+      const voteId = `${state.eventId}#${s.candidateId}#${state.identityId}`;
+      
+      // Check if vote exists
+      const { data: existingVote, errors: getErrors } = await client.models.Vote.get({ id: voteId });
+      if (getErrors?.length && !getErrors[0].message.includes('NotFound')) {
+        throw new Error(getErrors[0].message);
+      }
+
+      const oldScore = existingVote?.score ?? 0;
+      const delta = s.score - oldScore;
+
+      if (existingVote) {
+        // Update existing vote
+        const { errors: updateErrors } = await client.models.Vote.update({
+          id: voteId,
+          score: s.score,
+        });
+        if (updateErrors?.length) throw new Error(updateErrors[0].message);
+      } else {
+        // Create new vote
+        const { errors: createErrors } = await client.models.Vote.create({
+          id: voteId,
+          eventId: state.eventId,
+          candidateId: s.candidateId,
+          voterId: state.identityId,
+          score: s.score,
+        });
+        if (createErrors?.length) throw new Error(createErrors[0].message);
+      }
+
+      // Update candidate's totalScore
+      const { data: candidate } = await client.models.Candidate.get({ id: s.candidateId });
+      if (candidate) {
+        const newTotalScore = (candidate.totalScore ?? 0) + delta;
+        await client.models.Candidate.update({
+          id: s.candidateId,
+          totalScore: newTotalScore,
+        });
+      }
     }
 
     setText('score-result', '保存しました');
+    await refreshResults();
   } catch (e) {
     setText('score-result', `失敗: ${e.message}`);
   }
