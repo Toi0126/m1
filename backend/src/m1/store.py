@@ -45,6 +45,8 @@ class InMemoryStore(Store):
         entries = [
             Entry(id=new_id("ent"), name=name.strip()) for name in entry_names if name.strip()
         ]
+        if not entries:
+            raise ValueError("entry_names must contain at least one non-blank item")
         event = Event(id=event_id, title=title.strip(), entries=entries, created_at=_now())
         self.events[event_id] = event
         return event
@@ -109,6 +111,8 @@ class DynamoDBStore(Store):
         entries = [
             Entry(id=new_id("ent"), name=name.strip()) for name in entry_names if name.strip()
         ]
+        if not entries:
+            raise ValueError("entry_names must contain at least one non-blank item")
         event = Event(id=event_id, title=title.strip(), entries=entries, created_at=_now())
 
         self._table.put_item(
