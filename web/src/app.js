@@ -44,7 +44,25 @@ function getParticipantNameFromUrlHash() {
   return (sp.get('name') || '').trim();
 }
 
-function buildParticipantLink(eventId, participantName) {
+function getVoterIdFromUrlHash() {
+  const raw = String(window.location.hash || '').replace(/^#/, '').trim();
+  if (!raw) return '';
+
+  const sp = new URLSearchParams(raw);
+  return (sp.get('voter') || '').trim();
+}
+
+function generateVoterId() {
+  // Per-participant token (not tied to Cognito identityId) so one device can create multiple participants.
+  try {
+    if (typeof crypto?.randomUUID === 'function') return crypto.randomUUID();
+  } catch {
+    // ignore
+  }
+  return `v_${Math.random().toString(16).slice(2)}${Date.now().toString(16)}`;
+}
+
+function buildParticipantLink(eventId, participantName, voterId) {
   // Best practice: avoid putting personal data in query params (server logs / analytics).
   // Keep eventId in query for routing, and keep participant name in hash.
   const url = new URL(window.location.origin + window.location.pathname);
@@ -54,6 +72,8 @@ function buildParticipantLink(eventId, participantName) {
   if (name) {
     const sp = new URLSearchParams();
     sp.set('name', name);
+    const voter = String(voterId ?? '').trim();
+    if (voter) sp.set('voter', voter);
     url.hash = sp.toString();
   }
 
@@ -64,7 +84,7 @@ function renderParticipantLink(containerId, eventId, participantName) {
   const root = $(containerId);
   if (!root) return;
 
-  const url = buildParticipantLink(eventId, participantName);
+  const url = buildParticipantLink(eventId, participantName, state.voterId);
   root.innerHTML = '';
 
   const line1 = document.createElement('div');
@@ -83,6 +103,7 @@ const isParticipantLinkMode = Boolean(urlEventId);
 const state = {
   eventId: urlEventId || localStorage.getItem('eventId') || '',
   participantName: localStorage.getItem('participantName') || '',
+  voterId: localStorage.getItem('voterId') || '',
   identityId: localStorage.getItem('identityId') || '',
   event: null,
   candidates: [],
@@ -248,6 +269,10 @@ async function joinEvent(eventId, displayName) {
   if (!normalizedEventId) throw new Error('イベントIDを入力してください');
   if (!normalizedName) throw new Error('名前を入力してください');
 
+  const voterId = String(state.voterId || '').trim() || generateVoterId();
+  state.voterId = voterId;
+  localStorage.setItem('voterId', state.voterId);
+
   // Idempotent join by (eventId, voterId) without relying on a generated queryField.
   // Fetch participants by event and filter by voterId client-side.
   const allParticipants = [];
@@ -264,7 +289,7 @@ async function joinEvent(eventId, displayName) {
     } while (nextToken);
   }
 
-  const mineCandidates = allParticipants.filter((p) => p.voterId === state.identityId);
+  const mineCandidates = allParticipants.filter((p) => String(p.voterId) === voterId);
   const mine = mineCandidates.reduce((best, cur) => {
     if (!best) return cur;
     const bestUpdated = best.updatedAt ? Date.parse(best.updatedAt) : NaN;
@@ -274,7 +299,7 @@ async function joinEvent(eventId, displayName) {
   }, null);
 
   const existsSameNameOtherVoter = allParticipants.some(
-    (p) => normalizeDisplayName(p.displayName) === normalizedName && p.voterId !== state.identityId,
+    (p) => normalizeDisplayName(p.displayName) === normalizedName && String(p.voterId) !== voterId,
   );
 
   if (mine) {
@@ -283,11 +308,10 @@ async function joinEvent(eventId, displayName) {
       return mine;
     }
 
-    // If changing name, still enforce unique name within event.
+    // Allow renaming the same participant token (optional).
     if (existsSameNameOtherVoter) {
       throw new Error('同じ名前の参加者が既にいるため参加できません。別の名前にしてください');
     }
-
     const { data: updated, errors: updateErrors } = await client.models.Participant.update({
       id: mine.id,
       eventId: mine.eventId,
@@ -305,7 +329,7 @@ async function joinEvent(eventId, displayName) {
 
   const { data, errors } = await client.models.Participant.create({
     eventId: normalizedEventId,
-    voterId: state.identityId,
+    voterId,
     displayName: normalizedName,
   });
 
@@ -398,9 +422,11 @@ async function upsertVotesViaModels(scores) {
   if (!state.eventId) throw new Error('イベントIDがありません');
   if (!state.identityId) throw new Error('identityId がありません（ページを再読み込みしてください）');
 
+  const voterId = String(state.voterId || '').trim() || state.identityId;
+
   const { data: existingVotes, errors: existingVoteErrors } = await client.models.Vote.listVotesByEventAndVoter({
     eventId: state.eventId,
-    voterId: { eq: state.identityId },
+    voterId: { eq: voterId },
   });
   if (existingVoteErrors?.length) throw new Error(firstErrorMessage(existingVoteErrors));
 
@@ -424,7 +450,7 @@ async function upsertVotesViaModels(scores) {
       const { errors } = await client.models.Vote.create({
         eventId: state.eventId,
         candidateId: s.candidateId,
-        voterId: state.identityId,
+        voterId: voterId,
         score: s.score,
       });
       if (errors?.length) throw new Error(firstErrorMessage(errors));
@@ -636,6 +662,9 @@ $('btn-join').addEventListener('click', async () => {
     const eventId = requireNonBlank('イベントID', $('join-event-id').value);
     const name = requireNonBlank('名前', $('join-name').value);
 
+    // Explicit join = create a new participant token so one device can create multiple participants.
+    state.voterId = generateVoterId();
+    localStorage.setItem('voterId', state.voterId);
     await joinEvent(eventId, name);
 
     state.eventId = eventId;
@@ -660,6 +689,9 @@ if (joinInlineBtn) {
       const name = requireNonBlank('名前', $('participant-name')?.value);
       if (!state.eventId) throw new Error('イベントIDがURLにありません');
 
+      // Explicit join = create a new participant token so one device can create multiple participants.
+      state.voterId = generateVoterId();
+      localStorage.setItem('voterId', state.voterId);
       await joinEvent(state.eventId, name);
 
       state.participantName = name;
@@ -683,25 +715,8 @@ $('btn-save-scores').addEventListener('click', async () => {
     if (!state.eventId) throw new Error('イベントIDがありません');
     const scores = readScoresFromForm();
 
-    try {
-      for (const s of scores) {
-        const { errors } = await client.graphql({
-          query: UPsertVoteMutation,
-          variables: {
-            eventId: state.eventId,
-            candidateId: s.candidateId,
-            score: s.score,
-          },
-          authMode: 'iam',
-        });
-        if (errors?.length) throw new Error(firstErrorMessage(errors));
-      }
-    } catch (e) {
-      // If the custom mutation auth isn't deployed/updated yet, fall back to model operations.
-      const msg = toErrorMessage(e);
-      if (!msg.includes('Unauthorized')) throw e;
-      await upsertVotesViaModels(scores);
-    }
+    // Use model operations so votes can be associated with the active participant token (voterId).
+    await upsertVotesViaModels(scores);
 
     setText('score-result', '保存しました');
     await refreshResults();
@@ -730,9 +745,14 @@ $('btn-refresh-results').addEventListener('click', async () => {
     // Participant-specific link can carry name in hash.
     // If present, pre-fill and attempt auto-join so the user can start scoring immediately.
     const nameFromHash = getParticipantNameFromUrlHash();
+    const voterFromHash = getVoterIdFromUrlHash();
     if (nameFromHash) {
       state.participantName = nameFromHash;
       localStorage.setItem('participantName', state.participantName);
+    }
+    if (voterFromHash) {
+      state.voterId = voterFromHash;
+      localStorage.setItem('voterId', state.voterId);
     }
 
     await ensureAmplifyConfigured();
@@ -741,6 +761,10 @@ $('btn-refresh-results').addEventListener('click', async () => {
     // Auto-join first so the initial render shows the scoring UI (not the join button).
     if (isParticipantLinkMode && state.eventId && state.participantName) {
       try {
+        if (!state.voterId) {
+          state.voterId = generateVoterId();
+          localStorage.setItem('voterId', state.voterId);
+        }
         await joinEvent(state.eventId, state.participantName);
         state.joined = true;
       } catch (e) {
