@@ -591,8 +591,7 @@ $('btn-refresh-results').addEventListener('click', async () => {
     await ensureAmplifyConfigured();
     await ensureIdentity();
 
-    await loadEventAndCandidates();
-
+    // Auto-join first so the initial render shows the scoring UI (not the join button).
     if (isParticipantLinkMode && state.eventId && state.participantName) {
       try {
         await joinEvent(state.eventId, state.participantName);
@@ -600,10 +599,11 @@ $('btn-refresh-results').addEventListener('click', async () => {
       } catch (e) {
         // joinはユーザー操作でも実行できるため、ここでは落とさない
         console.warn('auto-join failed', e);
+        state.joined = false;
       }
     }
 
-    showSections();
+    await loadEventAndCandidates();
 
     if (state.eventId) {
       await refreshResults();
