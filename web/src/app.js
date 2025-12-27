@@ -282,7 +282,7 @@ async function joinEvent(eventId, displayName) {
       // Try to fetch existing participant
       const { data: existing } = await client.models.Participant.listParticipantsByEventAndVoter({
         eventId,
-        voterId: state.identityId,
+        voterId: { eq: state.identityId },
       });
       if (existing?.length > 0) {
         return existing[0];
@@ -380,7 +380,7 @@ async function upsertVotesViaModels(scores) {
 
   const { data: existingVotes, errors: existingVoteErrors } = await client.models.Vote.listVotesByEventAndVoter({
     eventId: state.eventId,
-    voterId: state.identityId,
+    voterId: { eq: state.identityId },
   });
   if (existingVoteErrors?.length) throw new Error(firstErrorMessage(existingVoteErrors));
 
