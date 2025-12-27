@@ -55,9 +55,15 @@ class InMemoryStore(Store):
         return self.events.get(event_id)
 
     def join_event(self, event_id: str, participant_name: str) -> Participant:
+        normalized_name = participant_name.strip()
+
+        # Enforce unique participant name within the same event.
+        if any(p.name == normalized_name for p in self.list_participants(event_id)):
+            raise ValueError("participant name already exists")
+
         participant = Participant(
             id=new_id("p"),
-            name=participant_name.strip(),
+            name=normalized_name,
             participant_key=new_id("k"),
         )
         self.participants[(event_id, participant.id)] = participant
@@ -139,9 +145,16 @@ class DynamoDBStore(Store):
         )
 
     def join_event(self, event_id: str, participant_name: str) -> Participant:
+        normalized_name = participant_name.strip()
+
+        # Enforce unique participant name within the same event.
+        # MVP implementation: query existing participants for the event.
+        if any(p.name == normalized_name for p in self.list_participants(event_id)):
+            raise ValueError("participant name already exists")
+
         participant = Participant(
             id=new_id("p"),
-            name=participant_name.strip(),
+            name=normalized_name,
             participant_key=new_id("k"),
         )
         self._table.put_item(

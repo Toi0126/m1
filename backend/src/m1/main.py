@@ -82,7 +82,13 @@ def create_app() -> FastAPI:
         event = store.get_event(event_id)
         if event is None:
             raise HTTPException(status_code=404, detail="event not found")
-        participant = store.join_event(event_id, req.name)
+        try:
+            participant = store.join_event(event_id, req.name)
+        except ValueError:
+            raise HTTPException(
+                status_code=409,
+                detail="participant name already exists",
+            )
         return JoinEventResponse(
             participant_id=participant.id, participant_key=participant.participant_key
         )
