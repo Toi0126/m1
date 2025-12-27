@@ -220,9 +220,9 @@ function setScoreUiEnabled(enabled) {
   if (saveBtn) saveBtn.hidden = false;
 
   if (isParticipantLinkMode) {
-    // In participant link mode, show the inline join UI until the user has joined.
-    // Joining is optional and must not block scoring.
-    if (joinBlock) joinBlock.hidden = Boolean(enabled);
+    // In participant link mode, always show the inline join UI so users can add a participant
+    // even if they can already score.
+    if (joinBlock) joinBlock.hidden = false;
   } else {
     // In normal mode, joining is handled by the standalone join section.
     if (joinBlock) joinBlock.hidden = true;
@@ -816,8 +816,9 @@ $('btn-refresh-results').addEventListener('click', async () => {
     await ensureAmplifyConfigured();
     await ensureIdentity();
 
-    // Auto-join first so the initial render shows the scoring UI (not the join button).
-    if (isParticipantLinkMode && state.eventId && state.participantName) {
+    // Auto-join only when the participant name is explicitly provided via URL hash.
+    // For eventId-only links (?eventId=...), do not auto-join from localStorage.
+    if (isParticipantLinkMode && state.eventId && nameFromHash) {
       try {
         if (!state.voterId) {
           state.voterId = generateVoterId();
