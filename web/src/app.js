@@ -374,6 +374,69 @@ function readScoresFromForm() {
   return scores;
 }
 
+async function upsertVotesViaModels(scores) {
+  if (!state.eventId) throw new Error('イベントIDがありません');
+  if (!state.identityId) throw new Error('identityId がありません（ページを再読み込みしてください）');
+
+  const { data: existingVotes, errors: existingVoteErrors } = await client.models.Vote.listVotesByEventAndVoter({
+    eventId: state.eventId,
+    voterId: state.identityId,
+  });
+  if (existingVoteErrors?.length) throw new Error(firstErrorMessage(existingVoteErrors));
+
+  const existingByCandidateId = new Map();
+  for (const v of existingVotes ?? []) {
+    existingByCandidateId.set(String(v.candidateId), v);
+  }
+
+  for (const s of scores) {
+    const existing = existingByCandidateId.get(String(s.candidateId));
+    if (existing) {
+      const { errors } = await client.models.Vote.update({
+        id: existing.id,
+        eventId: existing.eventId,
+        candidateId: existing.candidateId,
+        voterId: existing.voterId,
+        score: s.score,
+      });
+      if (errors?.length) throw new Error(firstErrorMessage(errors));
+    } else {
+      const { errors } = await client.models.Vote.create({
+        eventId: state.eventId,
+        candidateId: s.candidateId,
+        voterId: state.identityId,
+        score: s.score,
+      });
+      if (errors?.length) throw new Error(firstErrorMessage(errors));
+    }
+  }
+
+  // Recompute totalScore for each candidate from Vote table (MVP: eventual consistency / last-write-wins).
+  const [{ data: votes, errors: voteErrors }, { data: candidates, errors: candErrors }] = await Promise.all([
+    client.models.Vote.listVotesByEvent({ eventId: state.eventId }),
+    client.models.Candidate.listCandidatesByEvent({ eventId: state.eventId }),
+  ]);
+  if (voteErrors?.length) throw new Error(firstErrorMessage(voteErrors));
+  if (candErrors?.length) throw new Error(firstErrorMessage(candErrors));
+
+  const totals = new Map();
+  for (const v of votes ?? []) {
+    const k = String(v.candidateId);
+    totals.set(k, (totals.get(k) ?? 0) + Number(v.score ?? 0));
+  }
+
+  for (const c of candidates ?? []) {
+    const nextTotal = totals.get(String(c.id)) ?? 0;
+    const { errors } = await client.models.Candidate.update({
+      id: c.id,
+      eventId: c.eventId,
+      name: c.name,
+      totalScore: nextTotal,
+    });
+    if (errors?.length) throw new Error(firstErrorMessage(errors));
+  }
+}
+
 function renderTable(headers, rows) {
   const table = document.createElement('table');
   table.className = 'table';
@@ -582,17 +645,24 @@ $('btn-save-scores').addEventListener('click', async () => {
     if (!state.eventId) throw new Error('イベントIDがありません');
     const scores = readScoresFromForm();
 
-    for (const s of scores) {
-      const { errors } = await client.graphql({
-        query: UPsertVoteMutation,
-        variables: {
-          eventId: state.eventId,
-          candidateId: s.candidateId,
-          score: s.score,
-        },
-        authMode: 'iam',
-      });
-      if (errors?.length) throw new Error(firstErrorMessage(errors));
+    try {
+      for (const s of scores) {
+        const { errors } = await client.graphql({
+          query: UPsertVoteMutation,
+          variables: {
+            eventId: state.eventId,
+            candidateId: s.candidateId,
+            score: s.score,
+          },
+          authMode: 'iam',
+        });
+        if (errors?.length) throw new Error(firstErrorMessage(errors));
+      }
+    } catch (e) {
+      // If the custom mutation auth isn't deployed/updated yet, fall back to model operations.
+      const msg = toErrorMessage(e);
+      if (!msg.includes('Unauthorized')) throw e;
+      await upsertVotesViaModels(scores);
     }
 
     setText('score-result', '保存しました');
