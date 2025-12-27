@@ -158,16 +158,17 @@ function setScoreUiEnabled(enabled) {
   const scoreForm = $('score-form');
   const saveBtn = $('btn-save-scores');
 
+  // Scoring must always be available.
+  if (scoreForm) scoreForm.hidden = false;
+  if (saveBtn) saveBtn.hidden = false;
+
   if (isParticipantLinkMode) {
-    // In participant link mode, the user should be able to score immediately.
-    // Participant registration (display name) is optional and must not block scoring.
-    if (joinBlock) joinBlock.hidden = true;
-    if (scoreForm) scoreForm.hidden = false;
-    if (saveBtn) saveBtn.hidden = false;
+    // In participant link mode, show the inline join UI until the user has joined.
+    // Joining is optional and must not block scoring.
+    if (joinBlock) joinBlock.hidden = Boolean(enabled);
   } else {
+    // In normal mode, joining is handled by the standalone join section.
     if (joinBlock) joinBlock.hidden = true;
-    if (scoreForm) scoreForm.hidden = false;
-    if (saveBtn) saveBtn.hidden = false;
   }
 }
 
