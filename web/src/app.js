@@ -178,9 +178,8 @@ function renderScoreForm() {
     const input = document.createElement('input');
     input.type = 'number';
     input.min = '0';
-    input.max = '100';
     input.inputMode = 'numeric';
-    input.placeholder = '0-100';
+    input.placeholder = '0以上の整数';
     input.dataset.candidateId = entry.id;
 
     row.appendChild(name);
@@ -195,7 +194,7 @@ function readScoresFromForm() {
   for (const input of inputs) {
     const candidateId = input.dataset.candidateId;
     const v = input.value === '' ? 0 : Number(input.value);
-    if (!Number.isFinite(v) || v < 0 || v > 100) throw new Error('score must be 0-100');
+    if (!Number.isFinite(v) || v < 0) throw new Error('score must be a non-negative integer');
     scores.push({ candidateId, score: Math.trunc(v) });
   }
   return scores;
@@ -313,8 +312,21 @@ function setupRealtime() {
   teardownRealtime();
   if (!state.eventId) return;
 
-  // Realtime updates: disabled for MVP
-  // TODO: Implement subscription when GraphQL API is ready
+  const sub = client.subscriptions.onCandidateUpdated({ eventId: state.eventId }).subscribe({
+    next: async ({ data }) => {
+      if (!data) return;
+      try {
+        await refreshResults();
+      } catch (e) {
+        console.warn('failed to refresh results after subscription event', e);
+      }
+    },
+    error: (err) => {
+      console.warn('subscription error', err);
+    },
+  });
+
+  state.subs.push(sub);
 }
 
 
@@ -362,45 +374,12 @@ $('btn-save-scores').addEventListener('click', async () => {
     const scores = readScoresFromForm();
 
     for (const s of scores) {
-      // Query existing vote by eventId + candidateId + voterId
-      const { data: existingVotes } = await client.models.Vote.listVotesByEvent({
+      const { errors } = await client.mutations.upsertVote({
         eventId: state.eventId,
+        candidateId: s.candidateId,
+        score: s.score,
       });
-      
-      const existingVote = existingVotes?.find(
-        (v) => v.candidateId === s.candidateId && v.voterId === state.identityId
-      );
-
-      const oldScore = existingVote?.score ?? 0;
-      const delta = s.score - oldScore;
-
-      if (existingVote) {
-        // Update existing vote
-        const { errors: updateErrors } = await client.models.Vote.update({
-          id: existingVote.id,
-          score: s.score,
-        });
-        if (updateErrors?.length) throw new Error(updateErrors[0].message);
-      } else {
-        // Create new vote
-        const { errors: createErrors } = await client.models.Vote.create({
-          eventId: state.eventId,
-          candidateId: s.candidateId,
-          voterId: state.identityId,
-          score: s.score,
-        });
-        if (createErrors?.length) throw new Error(createErrors[0].message);
-      }
-
-      // Update candidate's totalScore
-      const { data: candidate } = await client.models.Candidate.get({ id: s.candidateId });
-      if (candidate) {
-        const newTotalScore = (candidate.totalScore ?? 0) + delta;
-        await client.models.Candidate.update({
-          id: s.candidateId,
-          totalScore: newTotalScore,
-        });
-      }
+      if (errors?.length) throw new Error(errors[0].message);
     }
 
     setText('score-result', '保存しました');

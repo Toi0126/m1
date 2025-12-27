@@ -1,5 +1,7 @@
 import { a, defineData, type ClientSchema } from '@aws-amplify/backend';
 
+import { upsertVote } from '../functions/upsert-vote/resource';
+
 const schema = a
   .schema({
     Event: a
@@ -41,6 +43,26 @@ const schema = a
         index('eventId').sortKeys(['voterId']).queryField('listVotesByEventAndVoter'),
       ])
       .authorization((allow) => [allow.guest()]),
+
+    upsertVote: a
+      .mutation()
+      .arguments({
+        eventId: a.id().required(),
+        candidateId: a.id().required(),
+        score: a.integer().required(),
+      })
+      .returns(a.ref('Candidate'))
+      .authorization((allow) => [allow.guest()])
+      .handler(a.handler.function(upsertVote)),
+
+    onCandidateUpdated: a
+      .subscription()
+      .for(a.ref('upsertVote'))
+      .arguments({
+        eventId: a.id().required(),
+      })
+      .authorization((allow) => [allow.guest()])
+      .handler(a.handler.custom({ entry: './onCandidateUpdated.js' })),
   });
 
 export type Schema = ClientSchema<typeof schema>;

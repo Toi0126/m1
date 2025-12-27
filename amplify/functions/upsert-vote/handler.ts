@@ -45,8 +45,8 @@ export const handler: Schema['upsertVote']['functionHandler'] = async (event) =>
   const voterId = getVoterId((event as any).identity);
 
   const normalizedScore = Math.trunc(Number(score));
-  if (!Number.isFinite(normalizedScore) || normalizedScore < 0 || normalizedScore > 100) {
-    throw new Error('score must be an integer 0-100');
+  if (!Number.isFinite(normalizedScore) || normalizedScore < 0) {
+    throw new Error('score must be a non-negative integer');
   }
 
   const voteId = `${eventId}#${candidateId}#${voterId}`;
