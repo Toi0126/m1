@@ -2,6 +2,32 @@ import { Amplify } from 'aws-amplify';
 import { generateClient } from 'aws-amplify/api';
 import { fetchAuthSession } from 'aws-amplify/auth';
 
+const UPsertVoteMutation = /* GraphQL */ `
+  mutation UpsertVote($eventId: ID!, $candidateId: ID!, $score: Int!) {
+    upsertVote(eventId: $eventId, candidateId: $candidateId, score: $score) {
+      id
+      eventId
+      name
+      totalScore
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+const OnCandidateUpdatedSubscription = /* GraphQL */ `
+  subscription OnCandidateUpdated($eventId: ID!) {
+    onCandidateUpdated(eventId: $eventId) {
+      id
+      eventId
+      name
+      totalScore
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
 const $ = (id) => document.getElementById(id);
 
 function getEventIdFromUrl() {
@@ -353,7 +379,14 @@ function setupRealtime() {
   teardownRealtime();
   if (!state.eventId) return;
 
-  const sub = client.subscriptions.onCandidateUpdated({ eventId: state.eventId }).subscribe({
+  // NOTE: Custom subscription is not included in model_introspection, so use graphql() directly.
+  const observable = client.graphql({
+    query: OnCandidateUpdatedSubscription,
+    variables: { eventId: state.eventId },
+    authMode: 'iam',
+  });
+
+  const sub = observable.subscribe({
     next: async ({ data }) => {
       if (!data) return;
       try {
@@ -461,10 +494,14 @@ $('btn-save-scores').addEventListener('click', async () => {
     const scores = readScoresFromForm();
 
     for (const s of scores) {
-      const { errors } = await client.mutations.upsertVote({
-        eventId: state.eventId,
-        candidateId: s.candidateId,
-        score: s.score,
+      const { errors } = await client.graphql({
+        query: UPsertVoteMutation,
+        variables: {
+          eventId: state.eventId,
+          candidateId: s.candidateId,
+          score: s.score,
+        },
+        authMode: 'iam',
       });
       if (errors?.length) throw new Error(errors[0].message);
     }
