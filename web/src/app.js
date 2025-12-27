@@ -248,6 +248,52 @@ async function joinEvent(eventId, displayName) {
   if (!normalizedEventId) throw new Error('イベントIDを入力してください');
   if (!normalizedName) throw new Error('名前を入力してください');
 
+  // Idempotent join by (eventId, voterId): if the participant already exists for this voter,
+  // return it (or update displayName) instead of creating a new record.
+  {
+    const { data: existingMine, errors: mineErrors } = await client.models.Participant.listParticipantsByEventAndVoter({
+      eventId: normalizedEventId,
+      voterId: { eq: state.identityId },
+    });
+    if (mineErrors?.length) throw new Error(firstErrorMessage(mineErrors));
+
+    const mine = (existingMine ?? [])[0];
+    if (mine) {
+      const mineName = normalizeDisplayName(mine.displayName);
+      if (mineName === normalizedName) {
+        return mine;
+      }
+
+      // If changing name, still enforce unique name within event.
+      let nextToken = undefined;
+      do {
+        const { data: participants, errors: partErrors, nextToken: nt } = await client.models.Participant.listParticipantsByEvent({
+          eventId: normalizedEventId,
+          nextToken,
+        });
+        if (partErrors?.length) throw new Error(firstErrorMessage(partErrors));
+
+        const existsSameNameOtherVoter = (participants ?? []).some(
+          (p) => normalizeDisplayName(p.displayName) === normalizedName && p.voterId !== state.identityId,
+        );
+        if (existsSameNameOtherVoter) {
+          throw new Error('同じ名前の参加者が既にいるため参加できません。別の名前にしてください');
+        }
+
+        nextToken = nt;
+      } while (nextToken);
+
+      const { data: updated, errors: updateErrors } = await client.models.Participant.update({
+        id: mine.id,
+        eventId: mine.eventId,
+        voterId: mine.voterId,
+        displayName: normalizedName,
+      });
+      if (updateErrors?.length) throw new Error(firstErrorMessage(updateErrors));
+      return updated ?? mine;
+    }
+  }
+
   // 同一イベント内の同名参加者をブロック（ただし自分自身の再joinは許可）
   {
     let nextToken = undefined;
@@ -275,21 +321,7 @@ async function joinEvent(eventId, displayName) {
     displayName: normalizedName,
   });
 
-  // idempotent join: if already exists, check by query
-  if (errors?.length) {
-    const msg = errors[0].message || '';
-    if (msg.includes('ConditionalCheckFailed') || msg.includes('already exists')) {
-      // Try to fetch existing participant
-      const { data: existing } = await client.models.Participant.listParticipantsByEventAndVoter({
-        eventId,
-        voterId: { eq: state.identityId },
-      });
-      if (existing?.length > 0) {
-        return existing[0];
-      }
-    }
-    throw new Error(msg);
-  }
+  if (errors?.length) throw new Error(firstErrorMessage(errors));
   return data;
 }
 
@@ -510,7 +542,25 @@ async function refreshResults() {
     votesByVoter.get(voterId).set(v.candidateId, Number(v.score ?? 0));
   }
 
-  const participantsSorted = (participants ?? []).slice().sort((a, b) => a.displayName.localeCompare(b.displayName));
+  // Deduplicate participants by voterId to avoid rendering the same person twice
+  // if multiple Participant records exist for the same voter.
+  const byVoter = new Map();
+  for (const p of participants ?? []) {
+    const key = String(p.voterId ?? '');
+    if (!key) continue;
+    const prev = byVoter.get(key);
+    if (!prev) {
+      byVoter.set(key, p);
+      continue;
+    }
+    const prevUpdated = prev.updatedAt ? Date.parse(prev.updatedAt) : NaN;
+    const nextUpdated = p.updatedAt ? Date.parse(p.updatedAt) : NaN;
+    if (Number.isFinite(nextUpdated) && (!Number.isFinite(prevUpdated) || nextUpdated >= prevUpdated)) {
+      byVoter.set(key, p);
+    }
+  }
+
+  const participantsSorted = [...byVoter.values()].sort((a, b) => a.displayName.localeCompare(b.displayName));
   for (const p of participantsSorted) {
     const scoreMap = votesByVoter.get(p.voterId) ?? new Map();
     const pairs = candList.map((c) => ({ id: c.id, score: Number(scoreMap.get(c.id) ?? 0) }));
