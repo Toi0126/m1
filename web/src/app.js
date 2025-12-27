@@ -138,6 +138,22 @@ function renderJoinLinks(containerId, eventId, participantName) {
   root.appendChild(a);
 }
 
+function renderCreateLinks(containerId, eventId) {
+  const root = $(containerId);
+  if (!root) return;
+  root.innerHTML = '';
+
+  const line0 = document.createElement('div');
+  line0.textContent = `イベントID: ${String(eventId ?? '').trim()}`;
+  root.appendChild(line0);
+
+  const spacer = document.createElement('div');
+  spacer.style.height = '10px';
+  root.appendChild(spacer);
+
+  renderEventLink(root, eventId);
+}
+
 const urlEventId = getEventIdFromUrl();
 const isParticipantLinkMode = Boolean(urlEventId);
 
@@ -690,7 +706,7 @@ $('btn-create').addEventListener('click', async () => {
     state.eventId = r.eventId;
     localStorage.setItem('eventId', state.eventId);
 
-    setText('create-result', `イベントID: ${state.eventId}`);
+    renderCreateLinks('create-result', state.eventId);
 
     await loadEventAndCandidates();
   } catch (e) {
