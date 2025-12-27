@@ -109,9 +109,11 @@ function setScoreUiEnabled(enabled) {
   const saveBtn = $('btn-save-scores');
 
   if (isParticipantLinkMode) {
-    if (joinBlock) joinBlock.hidden = enabled;
-    if (scoreForm) scoreForm.hidden = !enabled;
-    if (saveBtn) saveBtn.hidden = !enabled;
+    // In participant link mode, the user should be able to score immediately.
+    // Participant registration (display name) is optional and must not block scoring.
+    if (joinBlock) joinBlock.hidden = true;
+    if (scoreForm) scoreForm.hidden = false;
+    if (saveBtn) saveBtn.hidden = false;
   } else {
     if (joinBlock) joinBlock.hidden = true;
     if (scoreForm) scoreForm.hidden = false;
