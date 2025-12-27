@@ -80,6 +80,25 @@ function buildParticipantLink(eventId, participantName, voterId) {
   return url.toString();
 }
 
+function buildEventLink(eventId) {
+  const url = new URL(window.location.origin + window.location.pathname);
+  url.searchParams.set('eventId', String(eventId ?? '').trim());
+  return url.toString();
+}
+
+function renderEventLink(root, eventId) {
+  const url = buildEventLink(eventId);
+
+  const line1 = document.createElement('div');
+  line1.textContent = 'このリンクを共有すると、参加者が名前を登録して参加できます。';
+  root.appendChild(line1);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.textContent = url;
+  root.appendChild(a);
+}
+
 function renderParticipantLink(containerId, eventId, participantName) {
   const root = $(containerId);
   if (!root) return;
@@ -87,6 +106,28 @@ function renderParticipantLink(containerId, eventId, participantName) {
   const url = buildParticipantLink(eventId, participantName, state.voterId);
   root.innerHTML = '';
 
+  const line1 = document.createElement('div');
+  line1.textContent = 'このリンクをブックマーク/共有すると、次回は名前入力なしで採点できます。';
+  root.appendChild(line1);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.textContent = url;
+  root.appendChild(a);
+}
+
+function renderJoinLinks(containerId, eventId, participantName) {
+  const root = $(containerId);
+  if (!root) return;
+  root.innerHTML = '';
+
+  renderEventLink(root, eventId);
+
+  const spacer = document.createElement('div');
+  spacer.style.height = '10px';
+  root.appendChild(spacer);
+
+  const url = buildParticipantLink(eventId, participantName, state.voterId);
   const line1 = document.createElement('div');
   line1.textContent = 'このリンクをブックマーク/共有すると、次回は名前入力なしで採点できます。';
   root.appendChild(line1);
@@ -674,7 +715,7 @@ $('btn-join').addEventListener('click', async () => {
     localStorage.setItem('eventId', state.eventId);
     localStorage.setItem('participantName', state.participantName);
 
-    renderParticipantLink('join-result', state.eventId, state.participantName);
+    renderJoinLinks('join-result', state.eventId, state.participantName);
     state.joined = true;
     await loadEventAndCandidates();
   } catch (e) {
