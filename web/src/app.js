@@ -91,6 +91,10 @@ function requireNonBlank(label, value) {
   return v;
 }
 
+function normalizeDisplayName(name) {
+  return String(name ?? '').trim();
+}
+
 function competitionRankDesc(pairs) {
   // pairs: [{ id, score }]
   const sorted = [...pairs].sort((a, b) => {
@@ -160,13 +164,37 @@ async function createEvent(title, entryNames) {
 }
 
 async function joinEvent(eventId, displayName) {
-  if (!eventId.trim()) throw new Error('イベントIDを入力してください');
-  if (!displayName.trim()) throw new Error('名前を入力してください');
+  const normalizedEventId = String(eventId ?? '').trim();
+  const normalizedName = normalizeDisplayName(displayName);
+
+  if (!normalizedEventId) throw new Error('イベントIDを入力してください');
+  if (!normalizedName) throw new Error('名前を入力してください');
+
+  // 同一イベント内の同名参加者をブロック（ただし自分自身の再joinは許可）
+  {
+    let nextToken = undefined;
+    do {
+      const { data: participants, errors: partErrors, nextToken: nt } = await client.models.Participant.listParticipantsByEvent({
+        eventId: normalizedEventId,
+        nextToken,
+      });
+      if (partErrors?.length) throw new Error(partErrors[0].message);
+
+      const existsSameNameOtherVoter = (participants ?? []).some(
+        (p) => normalizeDisplayName(p.displayName) === normalizedName && p.voterId !== state.identityId,
+      );
+      if (existsSameNameOtherVoter) {
+        throw new Error('同じ名前の参加者が既にいるため参加できません。別の名前にしてください');
+      }
+
+      nextToken = nt;
+    } while (nextToken);
+  }
 
   const { data, errors } = await client.models.Participant.create({
-    eventId,
+    eventId: normalizedEventId,
     voterId: state.identityId,
-    displayName,
+    displayName: normalizedName,
   });
 
   // idempotent join: if already exists, check by query
