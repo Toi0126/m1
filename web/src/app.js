@@ -4,18 +4,52 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 
 const $ = (id) => document.getElementById(id);
 
+function getEventIdFromUrl() {
+  const sp = new URLSearchParams(window.location.search);
+  const raw = (sp.get('eventId') || sp.get('event_id') || '').trim();
+  return raw;
+}
+
+const urlEventId = getEventIdFromUrl();
+const isParticipantLinkMode = Boolean(urlEventId);
+
 const state = {
-  eventId: localStorage.getItem('eventId') || '',
+  eventId: urlEventId || localStorage.getItem('eventId') || '',
   participantName: localStorage.getItem('participantName') || '',
   identityId: localStorage.getItem('identityId') || '',
   event: null,
   candidates: [],
   subs: [],
+  joined: false,
 };
 
 function setText(id, text) {
   const el = $(id);
   if (el) el.textContent = text;
+}
+
+function setParticipantModeUI() {
+  const createSection = $('create-section');
+  const joinSection = $('join-section');
+
+  if (createSection) createSection.hidden = isParticipantLinkMode;
+  if (joinSection) joinSection.hidden = isParticipantLinkMode;
+}
+
+function setScoreUiEnabled(enabled) {
+  const joinBlock = $('participant-join-block');
+  const scoreForm = $('score-form');
+  const saveBtn = $('btn-save-scores');
+
+  if (isParticipantLinkMode) {
+    if (joinBlock) joinBlock.hidden = enabled;
+    if (scoreForm) scoreForm.hidden = !enabled;
+    if (saveBtn) saveBtn.hidden = !enabled;
+  } else {
+    if (joinBlock) joinBlock.hidden = true;
+    if (scoreForm) scoreForm.hidden = false;
+    if (saveBtn) saveBtn.hidden = false;
+  }
 }
 
 function parseLines(text) {
@@ -159,8 +193,15 @@ function showSections() {
     results.hidden = true;
   }
 
-  $('join-event-id').value = state.eventId || '';
-  $('join-name').value = state.participantName || $('join-name').value;
+  const joinEventId = $('join-event-id');
+  const joinName = $('join-name');
+  if (joinEventId) joinEventId.value = state.eventId || '';
+  if (joinName) joinName.value = state.participantName || joinName.value;
+
+  const participantName = $('participant-name');
+  if (participantName) participantName.value = state.participantName || participantName.value;
+
+  setScoreUiEnabled(!isParticipantLinkMode || state.joined);
 }
 
 function renderScoreForm() {
@@ -340,7 +381,27 @@ $('btn-create').addEventListener('click', async () => {
     state.eventId = r.eventId;
     localStorage.setItem('eventId', state.eventId);
 
-    setText('create-result', `イベントID: ${state.eventId}`);
+    const shareUrl = new URL(window.location.href);
+    shareUrl.searchParams.set('eventId', state.eventId);
+
+    const root = $('create-result');
+    if (root) {
+      root.innerHTML = '';
+
+      const line1 = document.createElement('div');
+      line1.textContent = `イベントID: ${state.eventId}`;
+      root.appendChild(line1);
+
+      const line2 = document.createElement('div');
+      line2.textContent = '参加者に送るリンク:';
+      root.appendChild(line2);
+
+      const a = document.createElement('a');
+      a.href = shareUrl.toString();
+      a.textContent = shareUrl.toString();
+      root.appendChild(a);
+    }
+
     await loadEventAndCandidates();
   } catch (e) {
     setText('create-result', `失敗: ${e.message}`);
@@ -362,11 +423,37 @@ $('btn-join').addEventListener('click', async () => {
     localStorage.setItem('participantName', state.participantName);
 
     setText('join-result', `参加OK: ${state.identityId}`);
+    state.joined = true;
     await loadEventAndCandidates();
   } catch (e) {
     setText('join-result', `失敗: ${e.message}`);
   }
 });
+
+const joinInlineBtn = $('btn-join-inline');
+if (joinInlineBtn) {
+  joinInlineBtn.addEventListener('click', async () => {
+    setText('participant-join-result', '');
+    try {
+      const name = requireNonBlank('名前', $('participant-name')?.value);
+      if (!state.eventId) throw new Error('イベントIDがURLにありません');
+
+      await joinEvent(state.eventId, name);
+
+      state.participantName = name;
+      state.joined = true;
+
+      localStorage.setItem('eventId', state.eventId);
+      localStorage.setItem('participantName', state.participantName);
+
+      setText('participant-join-result', `参加OK: ${state.identityId}`);
+      await loadEventAndCandidates();
+      await refreshResults();
+    } catch (e) {
+      setText('participant-join-result', `失敗: ${e.message}`);
+    }
+  });
+}
 
 $('btn-save-scores').addEventListener('click', async () => {
   setText('score-result', '');
@@ -399,10 +486,28 @@ $('btn-refresh-results').addEventListener('click', async () => {
 
 (async function boot() {
   try {
+    setParticipantModeUI();
+
+    if (urlEventId) {
+      state.eventId = urlEventId;
+      localStorage.setItem('eventId', state.eventId);
+    }
+
     await ensureAmplifyConfigured();
     await ensureIdentity();
 
     await loadEventAndCandidates();
+
+    if (isParticipantLinkMode && state.eventId && state.participantName) {
+      try {
+        await joinEvent(state.eventId, state.participantName);
+        state.joined = true;
+      } catch (e) {
+        // joinはユーザー操作でも実行できるため、ここでは落とさない
+        console.warn('auto-join failed', e);
+      }
+    }
+
     showSections();
 
     if (state.eventId) {

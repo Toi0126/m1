@@ -13,7 +13,7 @@ description: This file describes the development guidelines for the project.
 
 ## 方針
 - 設計時の参考にするGeminiのResearch結果: `docs/developer_guide/researches/research_report_by_gemini.md`
-- 方針は以下にまとめる。
+- 方針は以下にまとめる。実装が現状の方針と変化した場合は、必ずドキュメントを更新すること
     - 仕様概要：`docs/developer_guide/spec.md`
     - 設計概要：`docs/developer_guide/design.md`
 

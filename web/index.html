@@ -14,7 +14,7 @@
     </header>
 
     <main class="container app-main stack">
-      <section class="card">
+      <section class="card" id="create-section">
         <h2>1) イベント作成</h2>
         <label>
           タイトル
@@ -28,7 +28,7 @@
         <div class="muted" id="create-result"></div>
       </section>
 
-      <section class="card">
+      <section class="card" id="join-section">
         <h2>2) 参加（ニックネーム）</h2>
         <label>
           イベントID
@@ -45,6 +45,16 @@
       <section class="card" id="score-section" hidden>
         <h2>3) 採点</h2>
         <div class="muted" id="score-meta"></div>
+
+        <div id="participant-join-block" hidden>
+          <label>
+            名前
+            <input id="participant-name" type="text" placeholder="例: たろう" />
+          </label>
+          <button id="btn-join-inline">参加</button>
+          <div class="muted" id="participant-join-result"></div>
+        </div>
+
         <div id="score-form"></div>
         <button id="btn-save-scores">採点を保存</button>
         <div class="muted" id="score-result"></div>
