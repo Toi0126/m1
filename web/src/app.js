@@ -95,6 +95,35 @@ function setText(id, text) {
   if (el) el.textContent = text;
 }
 
+function firstErrorMessage(errors) {
+  const first = errors?.[0];
+  if (!first) return '不明なエラーが発生しました';
+
+  const msg = typeof first.message === 'string' ? first.message.trim() : '';
+  if (msg) return msg;
+
+  const type = typeof first.errorType === 'string' ? first.errorType.trim() : '';
+  if (type) return type;
+
+  try {
+    return JSON.stringify(first);
+  } catch {
+    return '不明なエラーが発生しました';
+  }
+}
+
+function toErrorMessage(e) {
+  if (!e) return '不明なエラーが発生しました';
+  if (e instanceof Error) return e.message || '不明なエラーが発生しました';
+  if (typeof e === 'string') return e || '不明なエラーが発生しました';
+  if (typeof e === 'object' && typeof e.message === 'string' && e.message.trim()) return e.message;
+  try {
+    return JSON.stringify(e);
+  } catch {
+    return '不明なエラーが発生しました';
+  }
+}
+
 function setParticipantModeUI() {
   const createSection = $('create-section');
   const joinSection = $('join-section');
@@ -331,6 +360,7 @@ function readScoresFromForm() {
   const scores = [];
   for (const input of inputs) {
     const candidateId = input.dataset.candidateId;
+    if (!candidateId) throw new Error('候補IDが取得できませんでした（再読み込みしてください）');
     const v = input.value === '' ? 0 : Number(input.value);
     if (!Number.isFinite(v) || v < 0) throw new Error('score must be a non-negative integer');
     scores.push({ candidateId, score: Math.trunc(v) });
@@ -543,6 +573,7 @@ if (joinInlineBtn) {
 $('btn-save-scores').addEventListener('click', async () => {
   setText('score-result', '');
   try {
+    if (!state.eventId) throw new Error('イベントIDがありません');
     const scores = readScoresFromForm();
 
     for (const s of scores) {
@@ -555,13 +586,13 @@ $('btn-save-scores').addEventListener('click', async () => {
         },
         authMode: 'iam',
       });
-      if (errors?.length) throw new Error(errors[0].message);
+      if (errors?.length) throw new Error(firstErrorMessage(errors));
     }
 
     setText('score-result', '保存しました');
     await refreshResults();
   } catch (e) {
-    setText('score-result', `失敗: ${e.message}`);
+    setText('score-result', `失敗: ${toErrorMessage(e)}`);
   }
 });
 
