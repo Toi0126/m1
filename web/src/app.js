@@ -207,7 +207,17 @@ function setParticipantModeUI() {
   const joinSection = $('join-section');
 
   if (createSection) createSection.hidden = isParticipantLinkMode;
-  if (joinSection) joinSection.hidden = isParticipantLinkMode;
+  // In participant link mode (?eventId=...), show the join section so users can add participants.
+  if (joinSection) joinSection.hidden = false;
+
+  const joinEventId = $('join-event-id');
+  const joinEventIdLabel = joinEventId?.closest('label');
+  if (joinEventIdLabel) joinEventIdLabel.hidden = isParticipantLinkMode;
+
+  const joinTitle = joinSection?.querySelector('h2');
+  if (joinTitle) {
+    joinTitle.textContent = isParticipantLinkMode ? '2) 参加（ニックネーム）' : '2) 参加（ニックネーム）';
+  }
 }
 
 function setScoreUiEnabled(enabled) {
@@ -219,14 +229,8 @@ function setScoreUiEnabled(enabled) {
   if (scoreForm) scoreForm.hidden = false;
   if (saveBtn) saveBtn.hidden = false;
 
-  if (isParticipantLinkMode) {
-    // In participant link mode, always show the inline join UI so users can add a participant
-    // even if they can already score.
-    if (joinBlock) joinBlock.hidden = false;
-  } else {
-    // In normal mode, joining is handled by the standalone join section.
-    if (joinBlock) joinBlock.hidden = true;
-  }
+  // Joining is handled by the standalone join section.
+  if (joinBlock) joinBlock.hidden = true;
 }
 
 function parseLines(text) {
