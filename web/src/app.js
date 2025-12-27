@@ -36,6 +36,47 @@ function getEventIdFromUrl() {
   return raw;
 }
 
+function getParticipantNameFromUrlHash() {
+  const raw = String(window.location.hash || '').replace(/^#/, '').trim();
+  if (!raw) return '';
+
+  const sp = new URLSearchParams(raw);
+  return (sp.get('name') || '').trim();
+}
+
+function buildParticipantLink(eventId, participantName) {
+  // Best practice: avoid putting personal data in query params (server logs / analytics).
+  // Keep eventId in query for routing, and keep participant name in hash.
+  const url = new URL(window.location.origin + window.location.pathname);
+  url.searchParams.set('eventId', String(eventId ?? '').trim());
+
+  const name = normalizeDisplayName(participantName);
+  if (name) {
+    const sp = new URLSearchParams();
+    sp.set('name', name);
+    url.hash = sp.toString();
+  }
+
+  return url.toString();
+}
+
+function renderParticipantLink(containerId, eventId, participantName) {
+  const root = $(containerId);
+  if (!root) return;
+
+  const url = buildParticipantLink(eventId, participantName);
+  root.innerHTML = '';
+
+  const line1 = document.createElement('div');
+  line1.textContent = 'このリンクをブックマーク/共有すると、次回は名前入力なしで採点できます。';
+  root.appendChild(line1);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.textContent = url;
+  root.appendChild(a);
+}
+
 const urlEventId = getEventIdFromUrl();
 const isParticipantLinkMode = Boolean(urlEventId);
 
@@ -442,26 +483,7 @@ $('btn-create').addEventListener('click', async () => {
     state.eventId = r.eventId;
     localStorage.setItem('eventId', state.eventId);
 
-    const shareUrl = new URL(window.location.href);
-    shareUrl.searchParams.set('eventId', state.eventId);
-
-    const root = $('create-result');
-    if (root) {
-      root.innerHTML = '';
-
-      const line1 = document.createElement('div');
-      line1.textContent = `イベントID: ${state.eventId}`;
-      root.appendChild(line1);
-
-      const line2 = document.createElement('div');
-      line2.textContent = '参加者に送るリンク:';
-      root.appendChild(line2);
-
-      const a = document.createElement('a');
-      a.href = shareUrl.toString();
-      a.textContent = shareUrl.toString();
-      root.appendChild(a);
-    }
+    setText('create-result', `イベントID: ${state.eventId}`);
 
     await loadEventAndCandidates();
   } catch (e) {
@@ -483,7 +505,7 @@ $('btn-join').addEventListener('click', async () => {
     localStorage.setItem('eventId', state.eventId);
     localStorage.setItem('participantName', state.participantName);
 
-    setText('join-result', `参加OK: ${state.identityId}`);
+    renderParticipantLink('join-result', state.eventId, state.participantName);
     state.joined = true;
     await loadEventAndCandidates();
   } catch (e) {
@@ -507,7 +529,7 @@ if (joinInlineBtn) {
       localStorage.setItem('eventId', state.eventId);
       localStorage.setItem('participantName', state.participantName);
 
-      setText('participant-join-result', `参加OK: ${state.identityId}`);
+      renderParticipantLink('participant-join-result', state.eventId, state.participantName);
       await loadEventAndCandidates();
       await refreshResults();
     } catch (e) {
@@ -556,6 +578,14 @@ $('btn-refresh-results').addEventListener('click', async () => {
     if (urlEventId) {
       state.eventId = urlEventId;
       localStorage.setItem('eventId', state.eventId);
+    }
+
+    // Participant-specific link can carry name in hash.
+    // If present, pre-fill and attempt auto-join so the user can start scoring immediately.
+    const nameFromHash = getParticipantNameFromUrlHash();
+    if (nameFromHash) {
+      state.participantName = nameFromHash;
+      localStorage.setItem('participantName', state.participantName);
     }
 
     await ensureAmplifyConfigured();
