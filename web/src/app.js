@@ -248,53 +248,9 @@ async function joinEvent(eventId, displayName) {
   if (!normalizedEventId) throw new Error('イベントIDを入力してください');
   if (!normalizedName) throw new Error('名前を入力してください');
 
-  // Idempotent join by (eventId, voterId): if the participant already exists for this voter,
-  // return it (or update displayName) instead of creating a new record.
-  {
-    const { data: existingMine, errors: mineErrors } = await client.models.Participant.listParticipantsByEventAndVoter({
-      eventId: normalizedEventId,
-      voterId: { eq: state.identityId },
-    });
-    if (mineErrors?.length) throw new Error(firstErrorMessage(mineErrors));
-
-    const mine = (existingMine ?? [])[0];
-    if (mine) {
-      const mineName = normalizeDisplayName(mine.displayName);
-      if (mineName === normalizedName) {
-        return mine;
-      }
-
-      // If changing name, still enforce unique name within event.
-      let nextToken = undefined;
-      do {
-        const { data: participants, errors: partErrors, nextToken: nt } = await client.models.Participant.listParticipantsByEvent({
-          eventId: normalizedEventId,
-          nextToken,
-        });
-        if (partErrors?.length) throw new Error(firstErrorMessage(partErrors));
-
-        const existsSameNameOtherVoter = (participants ?? []).some(
-          (p) => normalizeDisplayName(p.displayName) === normalizedName && p.voterId !== state.identityId,
-        );
-        if (existsSameNameOtherVoter) {
-          throw new Error('同じ名前の参加者が既にいるため参加できません。別の名前にしてください');
-        }
-
-        nextToken = nt;
-      } while (nextToken);
-
-      const { data: updated, errors: updateErrors } = await client.models.Participant.update({
-        id: mine.id,
-        eventId: mine.eventId,
-        voterId: mine.voterId,
-        displayName: normalizedName,
-      });
-      if (updateErrors?.length) throw new Error(firstErrorMessage(updateErrors));
-      return updated ?? mine;
-    }
-  }
-
-  // 同一イベント内の同名参加者をブロック（ただし自分自身の再joinは許可）
+  // Idempotent join by (eventId, voterId) without relying on a generated queryField.
+  // Fetch participants by event and filter by voterId client-side.
+  const allParticipants = [];
   {
     let nextToken = undefined;
     do {
@@ -302,17 +258,49 @@ async function joinEvent(eventId, displayName) {
         eventId: normalizedEventId,
         nextToken,
       });
-      if (partErrors?.length) throw new Error(partErrors[0].message);
-
-      const existsSameNameOtherVoter = (participants ?? []).some(
-        (p) => normalizeDisplayName(p.displayName) === normalizedName && p.voterId !== state.identityId,
-      );
-      if (existsSameNameOtherVoter) {
-        throw new Error('同じ名前の参加者が既にいるため参加できません。別の名前にしてください');
-      }
-
+      if (partErrors?.length) throw new Error(firstErrorMessage(partErrors));
+      allParticipants.push(...(participants ?? []));
       nextToken = nt;
     } while (nextToken);
+  }
+
+  const mineCandidates = allParticipants.filter((p) => p.voterId === state.identityId);
+  const mine = mineCandidates.reduce((best, cur) => {
+    if (!best) return cur;
+    const bestUpdated = best.updatedAt ? Date.parse(best.updatedAt) : NaN;
+    const curUpdated = cur.updatedAt ? Date.parse(cur.updatedAt) : NaN;
+    if (Number.isFinite(curUpdated) && (!Number.isFinite(bestUpdated) || curUpdated >= bestUpdated)) return cur;
+    return best;
+  }, null);
+
+  const existsSameNameOtherVoter = allParticipants.some(
+    (p) => normalizeDisplayName(p.displayName) === normalizedName && p.voterId !== state.identityId,
+  );
+
+  if (mine) {
+    const mineName = normalizeDisplayName(mine.displayName);
+    if (mineName === normalizedName) {
+      return mine;
+    }
+
+    // If changing name, still enforce unique name within event.
+    if (existsSameNameOtherVoter) {
+      throw new Error('同じ名前の参加者が既にいるため参加できません。別の名前にしてください');
+    }
+
+    const { data: updated, errors: updateErrors } = await client.models.Participant.update({
+      id: mine.id,
+      eventId: mine.eventId,
+      voterId: mine.voterId,
+      displayName: normalizedName,
+    });
+    if (updateErrors?.length) throw new Error(firstErrorMessage(updateErrors));
+    return updated ?? mine;
+  }
+
+  // No existing participant for this voter; enforce unique name within the event.
+  if (existsSameNameOtherVoter) {
+    throw new Error('同じ名前の参加者が既にいるため参加できません。別の名前にしてください');
   }
 
   const { data, errors } = await client.models.Participant.create({
