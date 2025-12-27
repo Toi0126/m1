@@ -1,17 +1,162 @@
-:root { color-scheme: light; }
+:root {
+  color-scheme: light;
+
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --text: #111111;
+  --muted: #555555;
+  --border: #e6e8eb;
+  --focus: #111111;
+  --primary: #111111;
+  --primaryText: #ffffff;
+  --radius: 14px;
+}
+
 * { box-sizing: border-box; }
-body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans JP", sans-serif; background: #fff; color: #111; }
-.container { max-width: 960px; margin: 0 auto; padding: 16px; }
-h1 { margin: 0 0 6px; font-size: 24px; }
-.muted { color: #555; font-size: 14px; }
-.card { border: 1px solid #ddd; border-radius: 10px; padding: 14px; margin: 12px 0; }
-label { display: block; margin: 10px 0; }
-input, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; }
-button { padding: 10px 12px; border: 1px solid #111; background: #111; color: #fff; border-radius: 8px; font-size: 16px; }
-button:disabled { opacity: 0.6; }
-.table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-.table th, .table td { border-bottom: 1px solid #eee; padding: 8px; text-align: left; }
-.score-row { display: grid; grid-template-columns: 1fr 120px; gap: 10px; align-items: center; margin: 8px 0; }
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans JP", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.app-header {
+  padding-top: max(16px, env(safe-area-inset-top));
+}
+
+.app-main {
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+}
+
+.stack { display: grid; gap: 12px; }
+
+h1 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 0.2px;
+}
+
+h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+h3 {
+  margin: 14px 0 8px;
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.muted { color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+input,
+textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 16px;
+  background: #fff;
+  color: var(--text);
+  outline: none;
+}
+
+textarea { resize: vertical; }
+
+input:focus,
+textarea:focus {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.12);
+}
+
+button {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: var(--primaryText);
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:active { transform: translateY(1px); }
+button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Smaller, inline buttons (e.g., refresh) */
+.btn-inline { width: auto; padding: 10px 12px; font-size: 14px; border-radius: 10px; }
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid var(--border);
+  padding: 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table th {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 700;
+  background: #fafafa;
+}
+
+.table tr:last-child td { border-bottom: none; }
+
+.score-row {
+  display: grid;
+  grid-template-columns: 1fr 120px;
+  gap: 10px;
+  align-items: center;
+  margin: 8px 0;
+}
+
+#results { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
 @media (max-width: 520px) {
-  .score-row { grid-template-columns: 1fr 90px; }
+  .container { padding: 14px; }
+  .score-row { grid-template-columns: 1fr 96px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:active { transform: none; }
 }

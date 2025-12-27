@@ -4,15 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>M1 Scoring</title>
+    <meta name="theme-color" content="#ffffff" />
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
-    <header class="container">
+    <header class="container app-header">
       <h1>M1 Scoring</h1>
       <p class="muted">みんなで採点 → 合計点と順位を表示（MVP）</p>
     </header>
 
-    <main class="container">
+    <main class="container app-main stack">
       <section class="card">
         <h2>1) イベント作成</h2>
         <label>
@@ -51,7 +52,7 @@
 
       <section class="card" id="results-section" hidden>
         <h2>4) 結果</h2>
-        <button id="btn-refresh-results">更新</button>
+        <button id="btn-refresh-results" class="btn-inline">更新</button>
         <div id="results"></div>
       </section>
     </main>
