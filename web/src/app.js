@@ -202,6 +202,12 @@ async function loadAmplifyOutputs() {
 async function ensureAmplifyConfigured() {
   const outputs = await loadAmplifyOutputs();
   Amplify.configure(outputs);
+
+  // Ensure the generated client picks up the configured backend and uses
+  // the correct default authorization provider for this app (guest IAM).
+  if (!client) {
+    client = generateClient({ authMode: 'iam' });
+  }
 }
 
 async function ensureIdentity() {
@@ -211,7 +217,7 @@ async function ensureIdentity() {
   localStorage.setItem('identityId', state.identityId);
 }
 
-const client = generateClient();
+let client;
 
 async function createEvent(title, entryNames) {
   if (!title.trim()) throw new Error('タイトルを入力してください');
